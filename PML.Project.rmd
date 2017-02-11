@@ -1,0 +1,192 @@
+---
+title: "Regression Modelling Assignment"
+author: "Adam Carr"
+date: "11 February 2017"
+output:
+  html_document: default
+---
+
+```{r, ref.label="setup", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```
+```{r, ref.label="load.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```
+```{r, ref.label="partition.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```
+```{r, ref.label="explore.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```
+```{r, ref.label="model.pre.process.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```
+# Synopsis
+
+This document is my project submission for the Practical Machine Learning course provided by Johns Hopkins University via the coursera platform [url](http://coursera.org).
+
+The project required using a training dataset gathered using fitness tracking hardware to attempt to predict if barbell lifts were correctly or incorrectly permformed in one of 5 different ways on a test dataset. 
+
+The data was sourced from : [url](http://groupware.les.inf.puc-rio.br/har)
+
+After a brief exploritory analysis I :
+- identified variables to remove;
+- decided to focus mainly on non linear modelts due to the data not showing any clear linear relationships   or correlation with each other. 
+- see if a combined model would produce a better prediction then the individual models generated.
+
+Summary of the cross validation done - spliting the training data into 3 - using a random selection process.
+
+Summary of the accuracy of predictions on the models produced
+
+
+# Exploritory Analysis
+
+A quick look at the data-set and interactions of the variables within the data-set.
+
+Please note all code is available in the appendix.
+
+## Data-Set
+
+The dataset is based on data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: [url](http://groupware.les.inf.puc-rio.br/har).
+
+We are trying to assign the activity into one of 5 categories
+
+- **Class A** = Performed to specification of exercise
+- **Class B** = throwing elbows to the front
+- **Class C** = lifting dumbbell only halfway
+- **Class D** = lowering dumbbell only halfway
+- **Class E** = throwing the hips to the front
+
+The data contained additional statistics added by the team gathering the results and some time-based information to link the data together. I believe these are not going to be useful to me for this project so I removed these variables. **Note:** For exploration I have done a litte processing of the data to create dummy variables based on the "classe" and "user_name" variables to allow a correlation matrix to be generated.
+
+Then I ran the caret::nearZeroVar function followed by the caret::findCorrelation function. The nearZeroVar function identied `r exp.nzv` variables that could be removed and the findCorrelation function found `r exp.cor` variables to remove.
+
+This resulted in a orginal train dataset with the dimensions of `r nrow(src.training)` observations of `r ncol(src.training)` variables been reduced to a data-set with the dimensions of `r nrow(train.explore)` observations of `r ncol(train.explore)` variables.
+
+## Data-set varaible relationships
+
+A correlation matrix was generated and explored. The output below shows the top 10 variables that are assocated with each of the classe varaiable outcomes. **Note:** I used the caret::dummyVar function on the classe function to enable this to work.
+
+```{r}
+knitr::kable(exp.cor.table)
+```
+
+It is worth noting that the correlations were not strong with any-variables - but this enabled me to focus on some variables to display on a pairs plot.
+
+```{r, ref.label="explore.data.graphic", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```
+
+This shows that that there are no stand-out correlations so I would guess that non-linear model based predictions will be quite a bit mroe accurate than the linear models.
+
+
+
+# Appendix
+
+## Code
+
+### Setup
+
+```{r setup, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE }
+knitr::opts_chunk$set(echo = FALSE)
+setwd("~/Documents/Data_Sci_Course/Pratical Machine Learning/PML_Project")
+library(caret);library(ggplot2);library(GGally)
+```
+
+### Load and partition data
+
+```{r load.data, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+src.training <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
+                         stringsAsFactors = FALSE,
+                         na.strings=c("NA","#DIV/0!"))
+final.testing <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+                          stringsAsFactors = FALSE,
+                          na.strings=c("NA","#DIV/0!"))
+```
+
+```{r partition.data, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+set.seed(145)
+# this only applies if not using time data
+inTrain <- createDataPartition(src.training$classe, p = 0.7)[[1]]
+train <- src.training[inTrain,]
+validate <- src.training[-inTrain,]
+# as I'm going to create a combined model - I will share the observations between validate and test
+set.seed(456)
+inValidate <- createDataPartition(validate$classe, p = 0.5)[[1]]
+validate <- validate[inValidate,]
+test <- validate[-inValidate,]
+final.test <- final.testing
+```
+
+### Exploritory Analysis
+
+```{r explore.data, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+train.explore <- src.training[inTrain,]
+
+# convert classe and username to dummyvar to allow correlation matrix to be created.
+t <- dummyVars(~user_name+classe,data=train.explore)
+t <- predict(t, newdata=train.explore)
+train.explore <- data.frame(train.explore,t)
+rm(t)
+
+# columns to manually removed - after inspection
+exp.rm.cols <- unique(c(
+        grep("^kurtosis|^skewness|^amplitude|^avg|^stddev|^var|^min|^max", colnames(train.explore)),
+        grep("new_window|num_window|cvtd_timestamp|raw_timestamp|raw_timestamp_part_1|raw_timestamp_part_2|X", colnames(train.explore)),
+        grep("classe$|user_name$", colnames(train.explore))
+))
+train.explore <- train.explore[-exp.rm.cols]
+# indentify and remove fields showing little variance
+exp.nzv <- nearZeroVar(train.explore)
+train.explore <- train.explore[-exp.nzv]
+# create correlation matrix and pass to caret function - findCorrelation
+# findCorrelation identifies variables that could be removed as correlated with another
+train.explore.cor <- cor(train.explore)
+exp.cor <- findCorrelation(train.explore.cor)
+train.explore <- train.explore[-exp.cor]
+
+# interesting to see which features are most correlated to each classe
+fn.order <- function(col){
+        x <- names(col[order(-abs(col))])
+        x <- x[-grep("classe", x)]
+}
+
+exp.cor.table <- data.frame(c.A=fn.order(train.explore.cor[,grep("classeA",colnames(train.explore.cor))]),
+           c.B=fn.order(train.explore.cor[,grep("classeB",colnames(train.explore.cor))]),
+           c.C=fn.order(train.explore.cor[,grep("classeC",colnames(train.explore.cor))]),
+           c.D=fn.order(train.explore.cor[,grep("classeD",colnames(train.explore.cor))]),
+           c.E=fn.order(train.explore.cor[,grep("classeB",colnames(train.explore.cor))])
+)
+```
+
+```{r explore.data.graphic, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+d <- data.frame(train.explore, classe=train$classe)
+x <- which(colnames(d) %in% exp.cor.table$c.A[1:10])
+x <- c(x, grep("classe$", colnames(d)))
+
+ggpairs(d[x],
+        mapping = aes(color=classe,alpha=0.9)) # takes a while
+
+rm(d,x)
+```
+
+### Model Building
+
+#### Pre-processing
+
+```{r model.pre.process.data, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+# function to manually remove pre-processing to remove statistics columns; any time related info and user specific info
+fn.pre.process <- function(data.set){
+        data <- data.set
+        rm.cols <- unique(c(
+                grep("^kurtosis|^skewness|^amplitude|^avg|^stddev|^var|^min|^max", colnames(data)),
+                grep("new_window|num_window|cvtd_timestamp|raw_timestamp|raw_timestamp_part_1|raw_timestamp_part_2|X", colnames(data)),
+                grep("user_name", colnames(data))
+        ))
+
+        data <- data[,-rm.cols]
+        return(data)
+}
+train <- fn.pre.process(train); validate <- fn.pre.process(validate)
+test <- fn.pre.process(test); final.test <- fn.pre.process(final.test)
+# to ensure the same is done to each data set, I'm using the caret package
+# to get rid of near zero value, and highly correlated features (>0.9)
+pre.proc.obj <- preProcess(train[,-which(colnames(train)=="classe")], method=c("nzv", "corr"))
+train <- predict(pre.proc.obj, newdata=train)
+validate <- predict(pre.proc.obj, newdata=validate)
+test <- predict(pre.proc.obj, newdata=test)
+```
