@@ -8,23 +8,34 @@ output:
 
 ```{r, ref.label="setup", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
 ```
-```{r, ref.label="load.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```{r, ref.label="load.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE, include=FALSE}
 ```
-```{r, ref.label="partition.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```{r, ref.label="partition.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE, include=FALSE}
 ```
-```{r, ref.label="explore.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```{r, ref.label="explore.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE, include=FALSE}
 ```
-```{r, ref.label="model.pre.process.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```{r, ref.label="model.pre.process.data", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE, include=FALSE}
+```
+```{r, ref.label="model.fit.lda", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE, include=FALSE}
+```
+```{r, ref.label="model.fit.rainforest", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE, include=FALSE}
+```
+```{r, ref.label="model.fit.gba", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE, include=FALSE}
+```
+```{r, ref.label="model.fit.combine", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE, include=FALSE}
+```
+```{r, ref.label="model.fit.combine.test", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, include=FALSE}
 ```
 # Synopsis
 
-This document is my project submission for the Practical Machine Learning course provided by Johns Hopkins University via the coursera platform [url](http://coursera.org).
+This document is my project submission for the Practical Machine Learning course provided by Johns Hopkins University via the [coursera platform](http://coursera.org).
 
 The project required using a training dataset gathered using fitness tracking hardware to attempt to predict if barbell lifts were correctly or incorrectly permformed in one of 5 different ways on a test dataset. 
 
-The data was sourced from : [url](http://groupware.les.inf.puc-rio.br/har)
+The data was sourced from : [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har)
 
 After a brief exploritory analysis I :
+
 - identified variables to remove;
 - decided to focus mainly on non linear modelts due to the data not showing any clear linear relationships   or correlation with each other. 
 - see if a combined model would produce a better prediction then the individual models generated.
@@ -32,7 +43,6 @@ After a brief exploritory analysis I :
 Summary of the cross validation done - spliting the training data into 3 - using a random selection process.
 
 Summary of the accuracy of predictions on the models produced
-
 
 # Exploritory Analysis
 
@@ -54,26 +64,89 @@ We are trying to assign the activity into one of 5 categories
 
 The data contained additional statistics added by the team gathering the results and some time-based information to link the data together. I believe these are not going to be useful to me for this project so I removed these variables. **Note:** For exploration I have done a litte processing of the data to create dummy variables based on the "classe" and "user_name" variables to allow a correlation matrix to be generated.
 
-Then I ran the caret::nearZeroVar function followed by the caret::findCorrelation function. The nearZeroVar function identied `r exp.nzv` variables that could be removed and the findCorrelation function found `r exp.cor` variables to remove.
+Then I ran the caret::nearZeroVar function followed by the caret::findCorrelation function. The nearZeroVar function identied `r length(exp.nzv)` variables that could be removed and the findCorrelation function found `r length(exp.cor)` variables to remove.
 
-This resulted in a orginal train dataset with the dimensions of `r nrow(src.training)` observations of `r ncol(src.training)` variables been reduced to a data-set with the dimensions of `r nrow(train.explore)` observations of `r ncol(train.explore)` variables.
+This resulted in a orginal train dataset with the dimensions of `r nrow(src.training[inTrain,])` observations of `r ncol(src.training[inTrain,])` variables been reduced to a data-set with the dimensions of `r nrow(train.explore)` observations of `r ncol(train.explore)` variables.
 
-## Data-set varaible relationships
+## Data-set variable relationships
 
-A correlation matrix was generated and explored. The output below shows the top 10 variables that are assocated with each of the classe varaiable outcomes. **Note:** I used the caret::dummyVar function on the classe function to enable this to work.
+A correlation matrix was generated and explored. The output below shows the top 5 variables that are assocated with each of the classe varaiable outcomes. **Note:** I used the caret::dummyVar function on the classe function to enable this to work.
 
 ```{r}
-knitr::kable(exp.cor.table)
+knitr::kable(exp.cor.table[1:5,])
 ```
 
 It is worth noting that the correlations were not strong with any-variables - but this enabled me to focus on some variables to display on a pairs plot.
 
-```{r, ref.label="explore.data.graphic", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+```{r, ref.label="explore.data.graphic", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE}
 ```
 
-This shows that that there are no stand-out correlations so I would guess that non-linear model based predictions will be quite a bit mroe accurate than the linear models.
+This shows that that there are no stand-out correlations so I would guess that non-linear model based predictions will be quite a bit mroe accurate than the linear models. It does show for some variables that there are pockets of values where a single class stands out so I would hope that it would be possible to get a good prediction model generated 
+
+# Prediction Models
+
+## Cross Validation
+
+The source training data-set was split into [3] partitions: train (70%), validate (15%) and test (15%). These partitions were generated by random selection without replacement.
+
+[3] models where generated using the train data-set. The models created were LDA, Rainforest and GBA.
+
+The predictions of the classe variable of these [3] models where predicted with the validate data-set. These predictions were collated into a new data-set to allow a combined model to be created. A set of confusion matrix and statistics for the [3] models were also generated at this point.
+
+The combined model along with the other models were then used to predict the results of the test data-set. An other set of confusion matrix and statistics were then generated.
 
 
+
+## Model Selection
+
+Model selection based on accuracy.
+
+Overview - Accuracy of the models cross-validated with [validate] data-set :
+```{r}
+knitr::kable(mdl.validate.accuracy)
+```
+
+Looks like the rainforest model is the better model - on accuracy equal with combined. Kappa value better. Is the combined model going to improve accuracy?
+
+```{r}
+knitr::kable(mdl.test.accuracy)
+```
+
+Looks like the rainforest model is the better model - on accuracy equal with combined. Kappa value better. So in this case the combined model does not appear to be worth using in this case.
+
+## LDA
+
+A model was generated with the LDA method. This is quick to run. I found that not pre-processing the data with pca achieved a better accuracy rate than with - so this model did not any addtion pre-processing then that already done.
+
+Print out of the confusion matrix.
+```{r}
+cm.lda
+```
+
+
+## Rainforest
+
+This is the decision tree based model created with the default settings of 500 trees and mtry set to 3.
+
+Print out of confusion matrix.
+```{r}
+cm.rf
+```
+
+## GBA
+
+Print out of confusion matrix.
+```{r}
+cm.gbm
+```
+
+
+## Combined Model
+
+Print out of confusion matrix.
+```{r}
+t.cm.cbn
+```
 
 # Appendix
 
@@ -81,7 +154,7 @@ This shows that that there are no stand-out correlations so I would guess that n
 
 ### Setup
 
-```{r setup, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE }
+```{r setup, eval=FALSE, echo=TRUE, include=TRUE, warning=FALSE, message=FALSE }
 knitr::opts_chunk$set(echo = FALSE)
 setwd("~/Documents/Data_Sci_Course/Pratical Machine Learning/PML_Project")
 library(caret);library(ggplot2);library(GGally)
@@ -89,7 +162,7 @@ library(caret);library(ggplot2);library(GGally)
 
 ### Load and partition data
 
-```{r load.data, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+```{r load.data, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 src.training <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
                          stringsAsFactors = FALSE,
                          na.strings=c("NA","#DIV/0!"))
@@ -98,7 +171,7 @@ final.testing <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/p
                           na.strings=c("NA","#DIV/0!"))
 ```
 
-```{r partition.data, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+```{r partition.data, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 set.seed(145)
 # this only applies if not using time data
 inTrain <- createDataPartition(src.training$classe, p = 0.7)[[1]]
@@ -114,7 +187,7 @@ final.test <- final.testing
 
 ### Exploritory Analysis
 
-```{r explore.data, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+```{r explore.data, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 train.explore <- src.training[inTrain,]
 
 # convert classe and username to dummyvar to allow correlation matrix to be created.
@@ -131,13 +204,13 @@ exp.rm.cols <- unique(c(
 ))
 train.explore <- train.explore[-exp.rm.cols]
 # indentify and remove fields showing little variance
-exp.nzv <- nearZeroVar(train.explore)
-train.explore <- train.explore[-exp.nzv]
+exp.nzv <- nearZeroVar(train.explore); 
+if(length(exp.nzv) > 0){train.explore <- train.explore[-exp.nzv]}
 # create correlation matrix and pass to caret function - findCorrelation
 # findCorrelation identifies variables that could be removed as correlated with another
 train.explore.cor <- cor(train.explore)
 exp.cor <- findCorrelation(train.explore.cor)
-train.explore <- train.explore[-exp.cor]
+if(length(exp.cor) >0){train.explore <- train.explore[-exp.cor]}
 
 # interesting to see which features are most correlated to each classe
 fn.order <- function(col){
@@ -145,17 +218,17 @@ fn.order <- function(col){
         x <- x[-grep("classe", x)]
 }
 
-exp.cor.table <- data.frame(c.A=fn.order(train.explore.cor[,grep("classeA",colnames(train.explore.cor))]),
-           c.B=fn.order(train.explore.cor[,grep("classeB",colnames(train.explore.cor))]),
-           c.C=fn.order(train.explore.cor[,grep("classeC",colnames(train.explore.cor))]),
-           c.D=fn.order(train.explore.cor[,grep("classeD",colnames(train.explore.cor))]),
-           c.E=fn.order(train.explore.cor[,grep("classeB",colnames(train.explore.cor))])
+exp.cor.table <- data.frame(classe.A=fn.order(train.explore.cor[,grep("classeA",colnames(train.explore.cor))]),
+           classe.B=fn.order(train.explore.cor[,grep("classeB",colnames(train.explore.cor))]),
+           classe.C=fn.order(train.explore.cor[,grep("classeC",colnames(train.explore.cor))]),
+           classe.D=fn.order(train.explore.cor[,grep("classeD",colnames(train.explore.cor))]),
+           classe.E=fn.order(train.explore.cor[,grep("classeB",colnames(train.explore.cor))])
 )
 ```
 
-```{r explore.data.graphic, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+```{r explore.data.graphic, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 d <- data.frame(train.explore, classe=train$classe)
-x <- which(colnames(d) %in% exp.cor.table$c.A[1:10])
+x <- which(colnames(d) %in% exp.cor.table$classe.A[1:5])
 x <- c(x, grep("classe$", colnames(d)))
 
 ggpairs(d[x],
@@ -168,7 +241,7 @@ rm(d,x)
 
 #### Pre-processing
 
-```{r model.pre.process.data, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+```{r model.pre.process.data, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
 # function to manually remove pre-processing to remove statistics columns; any time related info and user specific info
 fn.pre.process <- function(data.set){
         data <- data.set
@@ -190,3 +263,77 @@ train <- predict(pre.proc.obj, newdata=train)
 validate <- predict(pre.proc.obj, newdata=validate)
 test <- predict(pre.proc.obj, newdata=test)
 ```
+
+#### Fitting models to Training Data
+
+LDA - quick
+```{r model.fit.lda, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+
+fit.lda <- train(classe~.,method="lda",data=train)
+lda.pred <- predict(fit.lda,newdata=validate)
+cm.lda <- confusionMatrix(lda.pred, validate$classe)
+```
+
+Rain Forest - warning takes a while to generate
+```{r model.fit.rainforest, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+tcrl.rf <- trainControl(preProcOptions = list(thresh = 0.80))
+fit.rf <- train(classe~.,method="rf",data=train,
+              preProcess="pca",
+              trControl=tcrl.rf)
+rf.pred <- predict(fit.rf,newdata=validate)
+cm.rf <- confusionMatrix(rf.pred, validate$classe)
+```
+
+GBA - Bagging
+```{r model.fit.gba, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+tcrl.gbm <- trainControl(preProcOptions = list(thresh = 0.80))
+fit.gbm <- train(classe~.,method="gbm",data=train,
+              preProcess="pca",
+              trControl=tcrl.gbm) 
+gbm.pred <- predict(fit.gbm,newdata=validate)
+cm.gbm <- confusionMatrix(gbm.pred,validate$classe)
+```
+
+Combined model
+```{r model.fit.combine, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+cbn.train <-data.frame(classe=validate$classe, 
+                          rf.pred,
+                          gbm.pred,
+                          lda.pred)
+
+fit.cbn <- train(classe~., method="lda",data=cbn.train)
+
+
+```
+
+```{r model.fit.combine.test, echo=TRUE, eval=FALSE, include=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+
+t.lda.pred <- predict(fit.lda,newdata=test)
+t.rf.pred <- predict(fit.rf,newdata=test)
+t.gbm.pred <- predict(fit.gbm,newdata=test)
+
+
+cbn.test <- data.frame(classe=test$classe, 
+                          rf.pred=t.rf.pred,
+                          gbm.pred=t.gbm.pred,
+                          lda.pred=t.lda.pred)
+
+t.cbn.pred <- predict(fit.cbn,newdata=cbn.test)
+ 
+t.cm.lda <- confusionMatrix(t.lda.pred,test$classe)
+t.cm.rf <- confusionMatrix(t.rf.pred,test$classe)
+t.cm.gbm <- confusionMatrix(t.gbm.pred,test$classe)
+t.cm.cbn <- confusionMatrix(t.cbn.pred,cbn.test$classe)
+
+mdl.validate.accuracy <- c(rf=cm.rf$overall['Accuracy'],
+                           gbm=cm.gbm$overall['Accuracy'],
+                           lda=cm.lda$overall['Accuracy'])
+
+mdl.test.accuracy <- c(cb=t.cm.cbn$overall['Accuracy'], 
+                           rf=t.cm.rf$overall['Accuracy'],
+                           gbm=t.cm.gbm$overall['Accuracy'],
+                           lda=t.cm.lda$overall['Accuracy'])
+
+
+```
+
