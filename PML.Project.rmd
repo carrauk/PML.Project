@@ -57,7 +57,7 @@ A quick look at the data-set and interactions of the variables within the data-s
 
 Please note all code is available in the appendix.
 
-## Data-Set
+## Data-set
 
 The dataset is based on data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: [url](http://groupware.les.inf.puc-rio.br/har).
 
@@ -88,7 +88,7 @@ It is worth noting that the correlations were not strong with any-variables - bu
 ```{r, ref.label="explore.data.graphic", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cache=TRUE}
 ```
 
-This shows that that there are no stand-out correlations so I would guess that non-linear model based predictions will be quite a bit mroe accurate than the linear models. It does show for some variables that there are pockets of values where a single class stands out so I would hope that it would be possible to get a good prediction model generated 
+This shows that that there are no stand-out correlations so I would guess that non-linear model based predictions will be quite a bit more accurate than the linear models. It does show for some variables that there are pockets of values where a single class stands out so I would hope that it would be possible to get a good prediction model generated 
 
 # Prediction Models
 
