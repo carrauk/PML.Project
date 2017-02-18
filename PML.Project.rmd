@@ -51,6 +51,8 @@ Cross validation was carried out by randomly assigning the original training set
 
 After comparing the accurracy of the models I decided to use the predictions from the rainforest model for submission for the assignment. this model had an out of sample error rate ~5%.
 
+for conveniance the html output is available via this link -> https://carrauk.github.io/PML.Project/PML.Project.html
+
 # Exploritory Analysis
 
 A quick look at the data-set and interactions of the variables within the data-set.
