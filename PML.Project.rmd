@@ -2,8 +2,13 @@
 title: "Regression Modelling Assignment"
 author: "Adam Carr"
 date: "11 February 2017"
-output:
-  html_document: default
+output: 
+  html_document:
+    toc: true # table of content true
+    depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
+    theme: united  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
 ---
 
 ```{r, ref.label="setup", eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
@@ -37,12 +42,14 @@ The data was sourced from : [http://groupware.les.inf.puc-rio.br/har](http://gro
 After a brief exploritory analysis I :
 
 - identified variables to remove;
-- decided to focus mainly on non linear modelts due to the data not showing any clear linear relationships   or correlation with each other. 
+- decided to focus mainly on non linear models due to the data not showing any clear linear relationships or correlation with each other. 
 - see if a combined model would produce a better prediction then the individual models generated.
 
-Summary of the cross validation done - spliting the training data into 3 - using a random selection process.
+The models I created were: Rainforest, Gradient Boosting Machine (GBM) and Linear Discriminant Analysis (LDA). With a combined model created from the prediction output from the models created.
 
-Summary of the accuracy of predictions on the models produced
+Cross validation was carried out by randomly assigning the original training set into 3 sections: training[70%], validation[15%] and test[15%]. Due to attempting to create a combined model I created a validation set. I used the validation set to build a combined model based on the predictions of the models created on the train dataset. Out of sample error rates were then calculated for all the created models using the test dataset.
+
+After comparing the accurracy of the models I decided to use the predictions from the rainforest model for submission for the assignment. this model had an out of sample error rate ~5%.
 
 # Exploritory Analysis
 
@@ -91,64 +98,81 @@ The source training data-set was split into [3] partitions: train (70%), validat
 
 [3] models where generated using the train data-set. The models created were LDA, Rainforest and GBA.
 
-The predictions of the classe variable of these [3] models where predicted with the validate data-set. These predictions were collated into a new data-set to allow a combined model to be created. A set of confusion matrix and statistics for the [3] models were also generated at this point.
+The predictions of the classe variable of these [3] models where predicted with the validate data-set. These predictions were collated into a new data-set to allow a combined model to be created. A set of confusion matrix and statistics for the [3] models were generated at this point for reference.
 
-The combined model along with the other models were then used to predict the results of the test data-set. An other set of confusion matrix and statistics were then generated.
+The combined model along with the other models were then used to predict the results of the test data-set. These predictions were used to generate an other set of confusion matrix and statistics.
 
+## Model Building
 
+The code for model creation is available in the appendix > code section.
+
+A rainforest, Gradient Boosting Machine (GBA) and Linear Discriminant Analysis (LDA) model were created on the datasets that were reduced from 160 varibles to 56 variables as part of pre-processing (see Appendix > code > model builing > Pre-processing). In addition I made use of the the "pca" option for futher pre-processing setting the thres parameter to .8 meaning that I only included pca variables that exlained 80% of the overall picture. This was mainly done in an attempt to speed up the model creation process.
 
 ## Model Selection
 
-Model selection based on accuracy.
+The main driver for model selection is accuracy. I have also included a out of sample error rate as requested for the assignment.  
 
 Overview - Accuracy of the models cross-validated with [validate] data-set :
 ```{r}
 knitr::kable(mdl.validate.accuracy)
 ```
 
-Looks like the rainforest model is the better model - on accuracy equal with combined. Kappa value better. Is the combined model going to improve accuracy?
+Looks like the rainforest model is the better model - on accuracy equal with combined. Kappa value better. Is the combined model going to improve accuracy? Lets look when we run the models on the test dataset.
 
 ```{r}
 knitr::kable(mdl.test.accuracy)
 ```
 
-Looks like the rainforest model is the better model - on accuracy equal with combined. Kappa value better. So in this case the combined model does not appear to be worth using in this case.
+Looks like the rainforest model is the better model - on accuracy equal with combined. Kappa value better. So in this case the combined model does not appear to be worth using in this case. So the rainforest model is the one I'll use for prediction of the final.test set for submission for Course prediction.
 
-## LDA
+Details of the confusion matrix outputs for each of the models is availble in the appendix section.
+
+# Predictions for submission
+
+These are the predictions for the data to use for submission for assignment.
+
+```{r}
+pred <- predict(fit.rf, newdata=final.testing)
+pred
+```
+
+# Appendix
+
+## Model Selection - Confusion Matrix output
+
+### LDA
 
 A model was generated with the LDA method. This is quick to run. I found that not pre-processing the data with pca achieved a better accuracy rate than with - so this model did not any addtion pre-processing then that already done.
 
 Print out of the confusion matrix.
 ```{r}
-cm.lda
+t.cm.lda
 ```
 
 
-## Rainforest
+### Rainforest
 
 This is the decision tree based model created with the default settings of 500 trees and mtry set to 3.
 
 Print out of confusion matrix.
 ```{r}
-cm.rf
+t.cm.rf
 ```
 
-## GBA
+### GBA
 
 Print out of confusion matrix.
 ```{r}
-cm.gbm
+t.cm.gbm
 ```
 
 
-## Combined Model
+### Combined Model
 
 Print out of confusion matrix.
 ```{r}
 t.cm.cbn
 ```
-
-# Appendix
 
 ## Code
 
@@ -325,14 +349,29 @@ t.cm.rf <- confusionMatrix(t.rf.pred,test$classe)
 t.cm.gbm <- confusionMatrix(t.gbm.pred,test$classe)
 t.cm.cbn <- confusionMatrix(t.cbn.pred,cbn.test$classe)
 
-mdl.validate.accuracy <- c(rf=cm.rf$overall['Accuracy'],
-                           gbm=cm.gbm$overall['Accuracy'],
-                           lda=cm.lda$overall['Accuracy'])
+fn.error.rate <- function(cm.table){
+        ER <- as.matrix(cm.table)
+        error.rate <- round((sum(ER)-sum(diag(ER)))/sum(ER), 3)
+        return(error.rate)
+}
 
-mdl.test.accuracy <- c(cb=t.cm.cbn$overall['Accuracy'], 
-                           rf=t.cm.rf$overall['Accuracy'],
-                           gbm=t.cm.gbm$overall['Accuracy'],
-                           lda=t.cm.lda$overall['Accuracy'])
+mdl.validate.accuracy <- data.frame(model=c("rf", "gbm", "lda"),
+                                    accuracy=c(cm.rf$overall['Accuracy'],
+                                               cm.gbm$overall['Accuracy'], 
+                                               cm.lda$overall['Accuracy']),
+                                    error.rate=c(fn.error.rate(cm.rf$table),
+                                                 fn.error.rate(cm.gbm$table),
+                                                 fn.error.rate(cm.lda)))
+
+mdl.test.accuracy <- data.frame(model=c("cb", "rf", "gbm", "lda"),
+                                accuracy=c(t.cm.cbn$overall['Accuracy'],
+                                           t.cm.rf$overall['Accuracy'],
+                                           t.cm.gbm$overall['Accuracy'], 
+                                           t.cm.lda$overall['Accuracy']),
+                                error.rate=c(fn.error.rate(t.cm.cbn$table),
+                                             fn.error.rate(t.cm.rf$table),
+                                             fn.error.rate(t.cm.gbm$table),
+                                             fn.error.rate(t.cm.lda$table)))
 
 
 ```
